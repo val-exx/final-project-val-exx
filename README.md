@@ -4,4 +4,4 @@ This repository contains my contribution to the final project for the Advanced E
 
 The shared project documentation is available here:
 
-[Project Overview](LINK_ALLA_WIKI_PROJECT_OVERVIEW)
+[Project Overview](https://github.com/val-exx/final-project-val-exx/wiki/Project-Overview))
