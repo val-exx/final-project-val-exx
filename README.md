@@ -4,7 +4,7 @@ This repository contains my individual final project for the Advanced Embedded L
 
 The project documentation is available in the GitHub Wiki:
 
-[Project Overview](https://github.com/val-exx/final-project-val-exx/wiki/Project-Overview))
+[Project Overview](https://github.com/val-exx/final-project-val-exx/wiki/Project-Overview)
 
 The project schedule is available here:
 
