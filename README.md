@@ -1,7 +1,11 @@
-# Final Project - Embedded Linux Network Logger
+# Industrial Diagnostic Device Simulator and Logger on Raspberry Pi Zero using Buildroot
 
-This repository contains my contribution to the final project for the Advanced Embedded Linux Development course.
+This repository contains my individual final project for the Advanced Embedded Linux Development course.
 
-The shared project documentation is available here:
+The project documentation is available in the GitHub Wiki:
 
 [Project Overview](https://github.com/val-exx/final-project-val-exx/wiki/Project-Overview))
+
+The project schedule is available here:
+
+[Final Project Schedule](https://github.com/val-exx/final-project-val-exx/wiki/Final-Project-Schedule)
