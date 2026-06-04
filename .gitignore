@@ -1,0 +1,16 @@
+# Buildroot generated files
+buildroot/output/
+buildroot/dl/
+buildroot/.config
+buildroot/build.log
+
+# Build artifacts
+*.img
+*.ext2
+*.ext4
+*.vfat
+
+# Editor/system files
+.vscode/
+.idea/
+.DS_Store
