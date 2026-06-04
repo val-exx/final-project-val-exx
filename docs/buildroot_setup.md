@@ -54,3 +54,19 @@ The access method will be confirmed during testing. Possible options are:
 * USB networking / USB gadget mode
 * USB Ethernet adapter
 * Wi-Fi, if using Raspberry Pi Zero W
+
+## First Build Result
+
+The first baseline Buildroot image was generated using:
+
+```bash
+make raspberrypi0_defconfig
+make
+```
+
+The build completed successfully and generated the Raspberry Pi Zero SD card image:
+```
+output/images/sdcard.img
+```
+
+The next step is to flash image to a microSD card and verify boot on the Raspberry Pi Zero
