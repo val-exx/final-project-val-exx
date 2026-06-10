@@ -1,0 +1,7 @@
+config BR2_PACKAGE_DIAGNOSTIC_DAEMON
+bool "diagnostic_daemon"
+help
+  Diagnostic daemon for the industrial device simulator.
+
+  This application simulates machine status, handles fault
+  conditions, and writes diagnostic events to a log file.

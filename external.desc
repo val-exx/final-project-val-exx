@@ -1,0 +1,2 @@
+name: diagnostic_daemon
+desc: Industrial Diagnostic Device Simulator and Logger on Raspberry Pi Zero using Buildroot
