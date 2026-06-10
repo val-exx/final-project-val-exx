@@ -1,0 +1,144 @@
+#!/bin/sh
+
+USB_IF="usb0"
+USB_IP="192.168.7.2"
+GADGET_DIR="/sys/kernel/config/usb_gadget/rpi_rndis"
+LOGFILE="/tmp/usb_gadget_debug.log"
+
+log_msg()
+{
+    echo "$1" | tee -a "$LOGFILE"
+    echo "$1" > /dev/console
+    echo "$1" > /dev/tty1
+}
+
+log_cmd()
+{
+    "$@" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+}
+
+case "$1" in
+    start)
+        log_msg "===== S40usb-gadget: starting configfs RNDIS gadget ====="
+
+        log_msg "Loading USB gadget base modules..."
+        modprobe dwc2 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+        modprobe libcomposite 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+        sleep 2
+
+        log_msg "Checking available UDC controllers:"
+        ls /sys/class/udc 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        UDC_NAME="$(ls /sys/class/udc 2>/dev/null | head -n 1)"
+
+        if [ -z "$UDC_NAME" ]; then
+            log_msg "ERROR: no USB Device Controller found"
+            log_msg "Make sure dtoverlay=dwc2,dr_mode=peripheral is enabled in config.txt"
+            sleep 30
+            exit 1
+        fi
+
+        log_msg "Using UDC: $UDC_NAME"
+
+        log_msg "Mounting configfs if needed..."
+        if ! mountpoint -q /sys/kernel/config; then
+            mount -t configfs none /sys/kernel/config
+        fi
+
+        log_msg "Cleaning old gadget if present..."
+        if [ -d "$GADGET_DIR" ]; then
+            echo "" > "$GADGET_DIR/UDC" 2>/dev/null
+            rm -f "$GADGET_DIR/configs/c.1/rndis.usb0" 2>/dev/null
+            rmdir "$GADGET_DIR/functions/rndis.usb0" 2>/dev/null
+            rmdir "$GADGET_DIR/configs/c.1/strings/0x409" 2>/dev/null
+            rmdir "$GADGET_DIR/configs/c.1" 2>/dev/null
+            rmdir "$GADGET_DIR/strings/0x409" 2>/dev/null
+            rmdir "$GADGET_DIR" 2>/dev/null
+        fi
+
+        log_msg "Creating RNDIS USB gadget..."
+        mkdir -p "$GADGET_DIR"
+        cd "$GADGET_DIR" || exit 1
+
+        echo 0x1d6b > idVendor
+        echo 0x0104 > idProduct
+        echo 0x0200 > bcdUSB
+        echo 0x0100 > bcdDevice
+
+        mkdir -p strings/0x409
+        echo "0000000012345678" > strings/0x409/serialnumber
+        echo "Buildroot" > strings/0x409/manufacturer
+        echo "Raspberry Pi USB RNDIS Gadget" > strings/0x409/product
+
+        mkdir -p configs/c.1/strings/0x409
+        echo "RNDIS" > configs/c.1/strings/0x409/configuration
+        echo 250 > configs/c.1/MaxPower
+
+        mkdir -p functions/rndis.usb0
+
+        # Microsoft OS descriptors help Windows bind the RNDIS driver
+        echo 1 > os_desc/use
+        echo 0xcd > os_desc/b_vendor_code
+        echo MSFT100 > os_desc/qw_sign
+        mkdir -p functions/rndis.usb0/os_desc/interface.rndis
+        echo RNDIS > functions/rndis.usb0/os_desc/interface.rndis/compatible_id
+        echo 5162001 > functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id
+
+        ln -s functions/rndis.usb0 configs/c.1/
+        ln -s configs/c.1 os_desc
+
+        log_msg "Binding gadget to UDC..."
+        echo "$UDC_NAME" > UDC
+
+        log_msg "Waiting for $USB_IF interface..."
+        COUNT=0
+        while [ ! -d "/sys/class/net/$USB_IF" ] && [ "$COUNT" -lt 20 ]; do
+            sleep 1
+            COUNT=$((COUNT + 1))
+            log_msg "Waiting for $USB_IF... ${COUNT}s"
+        done
+
+        if [ ! -d "/sys/class/net/$USB_IF" ]; then
+            log_msg "ERROR: $USB_IF interface not found after timeout"
+            log_msg "Available interfaces:"
+            ls /sys/class/net 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+            sleep 30
+            exit 1
+        fi
+
+        log_msg "$USB_IF interface found"
+
+        log_msg "Configuring static IP $USB_IP on $USB_IF..."
+        ip link set "$USB_IF" up 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+        ip addr flush dev "$USB_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+        ip addr add "$USB_IP/24" dev "$USB_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "USB gadget interface status:"
+        ip addr show "$USB_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "===== S40usb-gadget: completed ====="
+        sleep 15
+        ;;
+
+    stop)
+        log_msg "Stopping USB Ethernet gadget..."
+        ip addr flush dev "$USB_IF" 2>/dev/null
+
+        if [ -d "$GADGET_DIR" ]; then
+            echo "" > "$GADGET_DIR/UDC" 2>/dev/null
+        fi
+        ;;
+
+    restart)
+        "$0" stop
+        sleep 1
+        "$0" start
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit 0

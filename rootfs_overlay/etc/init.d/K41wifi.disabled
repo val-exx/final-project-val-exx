@@ -1,0 +1,162 @@
+#!/bin/sh
+
+WIFI_IF="wlan0"
+WPA_CONF="/etc/wpa_supplicant.conf"
+STATIC_IP="192.168.1.90"
+NETMASK="255.255.255.0"
+GATEWAY="192.168.1.254"
+LOGFILE="/tmp/wifi_debug.log"
+
+log_msg()
+{
+    echo "$1" | tee -a "$LOGFILE"
+    echo "$1" > /dev/console
+    echo "$1" > /dev/tty1
+}
+
+log_cmd()
+{
+    "$@" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+}
+
+case "$1" in
+    start)
+        log_msg "===== S41wifi: starting WiFi debug script ====="
+
+        log_msg "Loading WiFi kernel modules..."
+        modprobe cfg80211 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+        modprobe brcmutil 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+        modprobe brcmfmac 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+        sleep 3
+
+        log_msg "Checking WiFi config file..."
+        if [ ! -f "$WPA_CONF" ]; then
+            log_msg "ERROR: Missing $WPA_CONF"
+            exit 1
+        fi
+
+        log_msg "Checking available network interfaces:"
+        ls /sys/class/net | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "Waiting for $WIFI_IF interface..."
+        COUNT=0
+        while [ ! -d "/sys/class/net/$WIFI_IF" ] && [ "$COUNT" -lt 30 ]; do
+            sleep 1
+            COUNT=$((COUNT + 1))
+            log_msg "Waiting for $WIFI_IF... ${COUNT}s"
+        done
+
+        if [ ! -d "/sys/class/net/$WIFI_IF" ]; then
+            log_msg "ERROR: $WIFI_IF interface not found after timeout"
+            log_msg "Available interfaces:"
+            ls /sys/class/net | tee -a "$LOGFILE" > /dev/tty1
+            sleep 20
+            exit 1
+        fi
+
+        log_msg "$WIFI_IF interface found"
+
+        log_msg "Bringing $WIFI_IF up..."
+        ip link set "$WIFI_IF" up 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "Interface status after ip link set up:"
+        ip addr show "$WIFI_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "Starting wpa_supplicant..."
+        killall wpa_supplicant 2>/dev/null
+        wpa_supplicant -B -i "$WIFI_IF" -c "$WPA_CONF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "Waiting for WiFi association..."
+
+        ASSOC_DONE=0
+        COUNT=0
+
+        while [ "$COUNT" -lt 30 ]; do
+            sleep 2
+            COUNT=$((COUNT + 2))
+
+            WPA_STATE=$(wpa_cli -i "$WIFI_IF" status 2>/dev/null | grep "^wpa_state=" | cut -d= -f2)
+
+            log_msg "WiFi association check at ${COUNT}s: wpa_state=${WPA_STATE}"
+
+            wpa_cli -i "$WIFI_IF" status 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+            if [ "$WPA_STATE" = "COMPLETED" ]; then
+                ASSOC_DONE=1
+                break
+            fi
+        done
+
+        if [ "$ASSOC_DONE" -ne 1 ]; then
+            log_msg "ERROR: WiFi association did not complete"
+            log_msg "Scan results:"
+            wpa_cli -i "$WIFI_IF" scan 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+            sleep 5
+            wpa_cli -i "$WIFI_IF" scan_results 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+            log_msg "S41wifi debug failed. Sleeping 30 seconds for HDMI visibility..."
+            sleep 30
+            exit 1
+        fi
+
+        log_msg "WiFi association completed"
+
+       log_msg "Assigning static IP for Windows hotspot..."
+	ip addr flush dev "$WIFI_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+	ip addr add 192.168.137.90/24 dev "$WIFI_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+	ip route add default via 192.168.137.1 dev "$WIFI_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+	log_msg "Static IP configured. Current WiFi interface status:"
+	ip addr show "$WIFI_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+	log_msg "Current routing table:"
+	ip route 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+	log_msg "Current ARP/neighbour table:"
+	ip neigh 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+	log_msg "wpa_cli final status:"
+	wpa_cli -i "$WIFI_IF" status 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+
+	log_msg "DHCP completed. Current WiFi interface status:"
+	ip addr show "$WIFI_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "Final WiFi interface status:"
+        ip addr show "$WIFI_IF" 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "Routing table:"
+        ip route 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+	log_msg "Testing connectivity to Windows hotspot gateway 192.168.137.1..."
+	ping -c 4 192.168.137.1 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+	log_msg "Testing connectivity to Windows PC 192.168.137.1..."
+	ping -c 4 192.168.137.1 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+	log_msg "Neighbor/ARP table:"
+	ip neigh 2>&1 | tee -a "$LOGFILE" > /dev/tty1
+
+        log_msg "===== S41wifi: completed successfully ====="
+        log_msg "S41wifi debug completed. Sleeping 20 seconds for HDMI visibility..."
+        sleep 20
+        ;;
+
+    stop)
+        log_msg "Stopping WiFi connection..."
+        killall wpa_supplicant 2>/dev/null
+        ip addr flush dev "$WIFI_IF" 2>/dev/null
+        ;;
+
+    restart)
+        "$0" stop
+        sleep 1
+        "$0" start
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit 0

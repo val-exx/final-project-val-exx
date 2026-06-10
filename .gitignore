@@ -14,3 +14,5 @@ buildroot/build.log
 .vscode/
 .idea/
 .DS_Store
+
+rootfs_overlay/etc/wpa_supplicant.conf
