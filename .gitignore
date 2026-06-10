@@ -16,3 +16,10 @@ buildroot/build.log
 .DS_Store
 
 rootfs_overlay/etc/wpa_supplicant.conf
+
+# Build artifacts
+app/diagnostic-daemon
+app/src/*.o
+
+# Local Buildroot tree
+buildroot/
