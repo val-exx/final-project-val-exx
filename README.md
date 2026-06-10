@@ -144,9 +144,11 @@ event=DAEMON_STOP
 
 Detailed project documentation is available in:
 
-* `docs/diagnostic_daemon.md`
-* `docs/buildroot_integration.md`
-* `docs/final_system_test.md`
+* `docs/buildroot_setup.md` - initial Buildroot and Raspberry Pi Zero 2 W setup
+* `docs/diagnostic_daemon.md` - diagnostic daemon implementation and validation
+* `docs/protocol.md` - diagnostic protocol draft documentation
+* `docs/buildroot_integration.md` - Buildroot external tree and package integration
+* `docs/final_system_test.md` - final target validation and test results
 
 The project wiki also contains:
 
