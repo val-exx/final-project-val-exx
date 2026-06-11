@@ -1,4 +1,4 @@
-# Industrial Diagnostic Device Simulator and Logger on Raspberry Pi Zero using Buildroot
+# Industrial Diagnostic Device Simulator and Logger on Raspberry Pi Zero 2 W using Buildroot
 
 This repository contains my individual final project for the **Advanced Embedded Linux Development** course.
 
