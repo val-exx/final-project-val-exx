@@ -37,7 +37,7 @@ docs/
 ├── buildroot_integration.md
 ├── buildroot_setup.md
 ├── diagnostic_daemon.md
-├── protocol.md.md
+├── protocol.md
 └── final_system_test.md
 
 package/
